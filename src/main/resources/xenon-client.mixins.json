@@ -3,7 +3,9 @@
   "package": "com.xenonclient.mixin",
   "compatibilityLevel": "JAVA_25",
   "client": [
-    "KeyboardHandlerMixin"
+    "KeyboardHandlerMixin",
+    "SprintMixin",
+    "FullbrightMixin"
   ],
   "injectors": {
     "defaultRequire": 1
