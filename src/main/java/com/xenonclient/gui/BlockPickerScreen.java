@@ -8,6 +8,7 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.Block;
 
 import java.util.ArrayList;
@@ -125,12 +126,19 @@ public class BlockPickerScreen extends Screen {
                     drawBorder(graphics, cellX, cellY, CELL_SIZE - 2, CELL_SIZE - 2, borderCol);
                 }
 
-                // Block name (abbreviated)
-                String name = block.getName().getString();
-                if (name.length() > 4) name = name.substring(0, 3) + ".";
-                int nameW = this.font.width(name);
-                graphics.text(this.font, name, cellX + (CELL_SIZE - 2 - nameW) / 2,
-                        cellY + (CELL_SIZE - 2 - 8) / 2, 0xFFCCCCCC, false);
+                // Render block icon
+                ItemStack stack = new ItemStack(block.asItem());
+                if (!stack.isEmpty()) {
+                    graphics.item(stack, cellX + (CELL_SIZE - 2 - 16) / 2,
+                            cellY + (CELL_SIZE - 2 - 16) / 2);
+                } else {
+                    // Fallback to abbreviated name for blocks without items
+                    String name = block.getName().getString();
+                    if (name.length() > 4) name = name.substring(0, 3) + ".";
+                    int nameW = this.font.width(name);
+                    graphics.text(this.font, name, cellX + (CELL_SIZE - 2 - nameW) / 2,
+                            cellY + (CELL_SIZE - 2 - 8) / 2, 0xFFCCCCCC, false);
+                }
             }
         }
 

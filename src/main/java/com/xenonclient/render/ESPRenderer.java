@@ -1,5 +1,8 @@
 package com.xenonclient.render;
 
+import com.mojang.blaze3d.pipeline.DepthStencilState;
+import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.blaze3d.platform.CompareOp;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.xenonclient.XenonClient;
@@ -10,8 +13,13 @@ import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderContext;
 import net.fabricmc.fabric.api.client.rendering.v1.level.LevelRenderEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.ShapeRenderer;
+import net.minecraft.client.renderer.rendertype.RenderSetup;
+import net.minecraft.client.renderer.rendertype.RenderType;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
+import net.minecraft.client.renderer.rendertype.LayeringTransform;
+import net.minecraft.client.renderer.rendertype.OutputTarget;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
 import net.minecraft.core.BlockPos;
@@ -21,12 +29,38 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.VoxelShape;
+import org.joml.Vector3f;
 
 /**
  * Handles ESP rendering for blocks, storage containers, and players.
  * Registers with Fabric's LevelRenderEvents to draw outlines in the world.
  */
 public class ESPRenderer {
+
+    private static final float ESP_LINE_WIDTH = 2.0f;
+
+    /**
+     * Custom no-depth-test RenderPipeline for ESP lines that render through walls.
+     * Built from LINES_SNIPPET but with DepthStencilState set to ALWAYS_PASS.
+     */
+    private static final RenderPipeline ESP_LINES_PIPELINE = RenderPipelines.register(
+            RenderPipeline.builder(RenderPipelines.LINES_SNIPPET)
+                    .withLocation("xenon_esp_lines")
+                    .withDepthStencilState(new DepthStencilState(CompareOp.ALWAYS_PASS, false))
+                    .withCull(false)
+                    .build()
+    );
+
+    /**
+     * Custom RenderType using the no-depth ESP pipeline.
+     */
+    private static final RenderType ESP_LINES = RenderType.create(
+            "xenon_esp_lines",
+            RenderSetup.builder(ESP_LINES_PIPELINE)
+                    .setLayeringTransform(LayeringTransform.VIEW_OFFSET_Z_LAYERING)
+                    .setOutputTarget(OutputTarget.ITEM_ENTITY_TARGET)
+                    .createRenderSetup()
+    );
 
     public static void register() {
         LevelRenderEvents.AFTER_TRANSLUCENT_FEATURES.register(ESPRenderer::onRenderWorld);
@@ -44,13 +78,16 @@ public class ESPRenderer {
         double camY = levelState.cameraRenderState.pos.y;
         double camZ = levelState.cameraRenderState.pos.z;
 
-        renderBlockESP(mc, poseStack, bufferSource, camX, camY, camZ);
-        renderStorageESP(mc, poseStack, bufferSource, camX, camY, camZ, levelState);
-        renderPlayerESP(poseStack, bufferSource, camX, camY, camZ, levelState);
+        // Use custom no-depth RenderType so ESP renders through walls
+        VertexConsumer espConsumer = bufferSource.getBuffer(ESP_LINES);
+
+        renderBlockESP(mc, poseStack, espConsumer, camX, camY, camZ);
+        renderStorageESP(mc, poseStack, espConsumer, camX, camY, camZ, levelState);
+        renderPlayerESP(poseStack, espConsumer, camX, camY, camZ, levelState);
     }
 
     private static void renderBlockESP(Minecraft mc, PoseStack poseStack,
-                                        MultiBufferSource.BufferSource bufferSource,
+                                        VertexConsumer lineConsumer,
                                         double camX, double camY, double camZ) {
         BlockESPModule blockESP = XenonClient.getInstance().getModuleManager().getModule(BlockESPModule.class);
         if (blockESP == null || !blockESP.isEnabled()) return;
@@ -63,8 +100,6 @@ public class ESPRenderer {
         float b = (color & 0xFF) / 255.0f;
         float a = ((color >> 24) & 0xFF) / 255.0f;
         if (a == 0) a = 1.0f;
-
-        VertexConsumer lineConsumer = bufferSource.getBuffer(RenderTypes.lines());
 
         for (int x = -range; x <= range; x++) {
             for (int y = -range; y <= range; y++) {
@@ -79,7 +114,7 @@ public class ESPRenderer {
                             int packed = packColor(r, g, b, a);
                             ShapeRenderer.renderShape(poseStack, lineConsumer, shape,
                                     pos.getX() - camX, pos.getY() - camY, pos.getZ() - camZ,
-                                    packed, a);
+                                    packed, ESP_LINE_WIDTH);
                             poseStack.popPose();
                         }
                     }
@@ -89,13 +124,11 @@ public class ESPRenderer {
     }
 
     private static void renderStorageESP(Minecraft mc, PoseStack poseStack,
-                                          MultiBufferSource.BufferSource bufferSource,
+                                          VertexConsumer lineConsumer,
                                           double camX, double camY, double camZ,
                                           LevelRenderState levelState) {
         StorageESPModule storageESP = XenonClient.getInstance().getModuleManager().getModule(StorageESPModule.class);
         if (storageESP == null || !storageESP.isEnabled()) return;
-
-        VertexConsumer lineConsumer = bufferSource.getBuffer(RenderTypes.lines());
 
         for (var beState : levelState.blockEntityRenderStates) {
             BlockPos pos = beState.blockPos;
@@ -124,7 +157,7 @@ public class ESPRenderer {
                 int packed = packColor(r, g, b, a);
                 ShapeRenderer.renderShape(poseStack, lineConsumer, shape,
                         pos.getX() - camX, pos.getY() - camY, pos.getZ() - camZ,
-                        packed, a);
+                        packed, ESP_LINE_WIDTH);
                 poseStack.popPose();
             }
         }
@@ -151,13 +184,11 @@ public class ESPRenderer {
         return 0;
     }
 
-    private static void renderPlayerESP(PoseStack poseStack, MultiBufferSource.BufferSource bufferSource,
+    private static void renderPlayerESP(PoseStack poseStack, VertexConsumer lineConsumer,
                                          double camX, double camY, double camZ,
                                          LevelRenderState levelState) {
         PlayerESPModule playerESP = XenonClient.getInstance().getModuleManager().getModule(PlayerESPModule.class);
         if (playerESP == null || !playerESP.isEnabled()) return;
-
-        VertexConsumer lineConsumer = bufferSource.getBuffer(RenderTypes.lines());
 
         for (EntityRenderState entityState : levelState.entityRenderStates) {
             if (entityState.entityType != EntityType.PLAYER) continue;
@@ -224,8 +255,9 @@ public class ESPRenderer {
                               float x2, float y2, float z2,
                               float r, float g, float b, float a,
                               float nx, float ny, float nz) {
-        consumer.addVertex(pose, x1, y1, z1).setColor(r, g, b, a).setNormal(pose, nx, ny, nz);
-        consumer.addVertex(pose, x2, y2, z2).setColor(r, g, b, a).setNormal(pose, nx, ny, nz);
+        Vector3f normal = new Vector3f(nx, ny, nz);
+        consumer.addVertex(pose, x1, y1, z1).setColor(r, g, b, a).setNormal(pose, normal).setLineWidth(ESP_LINE_WIDTH);
+        consumer.addVertex(pose, x2, y2, z2).setColor(r, g, b, a).setNormal(pose, normal).setLineWidth(ESP_LINE_WIDTH);
     }
 
     private static int packColor(float r, float g, float b, float a) {
