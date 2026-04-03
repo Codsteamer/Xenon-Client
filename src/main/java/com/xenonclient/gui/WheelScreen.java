@@ -1,8 +1,10 @@
 package com.xenonclient.gui;
 
 import com.xenonclient.XenonClient;
+import com.xenonclient.module.Module;
 import com.xenonclient.section.Section;
 import com.xenonclient.section.SectionManager;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -278,6 +280,22 @@ public class WheelScreen extends Screen {
         int button = event.button();
         double mouseX = event.x();
         double mouseY = event.y();
+
+        // Handle clicks on the active panel
+        if (activePanel != null && activePanel.isMouseOver((int) mouseX, (int) mouseY)) {
+            if (button == 0) {
+                // Left-click: toggle module
+                activePanel.handleLeftClick((int) mouseX, (int) mouseY);
+                return true;
+            } else if (button == 1) {
+                // Right-click: open config
+                Module mod = activePanel.handleRightClick((int) mouseX, (int) mouseY);
+                if (mod != null) {
+                    Minecraft.getInstance().setScreen(new ModuleConfigScreen(this, mod));
+                    return true;
+                }
+            }
+        }
 
         if (button == 0 && hoveredSection >= 0) {
             SectionManager manager = XenonClient.getInstance().getSectionManager();
