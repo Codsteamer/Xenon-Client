@@ -5,7 +5,8 @@
   "client": [
     "KeyboardHandlerMixin",
     "SprintMixin",
-    "FullbrightMixin"
+    "FullbrightMixin",
+    "LevelRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1
