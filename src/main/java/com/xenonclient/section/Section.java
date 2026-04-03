@@ -9,7 +9,7 @@ public class Section {
 
     private final String name;
     private final String description;
-    private final int color;
+    private int color;
     private final String icon;
     private boolean enabled;
 
@@ -31,6 +31,10 @@ public class Section {
 
     public int getColor() {
         return color;
+    }
+
+    public void setColor(int color) {
+        this.color = color;
     }
 
     public String getIcon() {
