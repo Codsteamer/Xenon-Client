@@ -15,6 +15,7 @@ public class PlayerESPModule extends Module {
     private boolean showName = true;
     private boolean showDistance = true;
     private int range = 256;
+    private boolean tracerEnabled = false;
 
     public PlayerESPModule() {
         super("Player ESP", "Highlights players through walls", "Render");
@@ -45,4 +46,7 @@ public class PlayerESPModule extends Module {
 
     public int getRange() { return range; }
     public void setRange(int range) { this.range = range; }
+
+    public boolean isTracerEnabled() { return tracerEnabled; }
+    public void setTracerEnabled(boolean enabled) { this.tracerEnabled = enabled; }
 }

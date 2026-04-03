@@ -18,6 +18,8 @@ public class ModuleConfigScreen extends Screen {
     private final Screen parent;
     private final Module module;
     private int scrollOffset = 0;
+    private ColorWheelWidget colorWheel = null;
+    private String activeColorField = null;
 
     public ModuleConfigScreen(Screen parent, Module module) {
         super(Component.literal(module.getName() + " Config"));
@@ -65,6 +67,13 @@ public class ModuleConfigScreen extends Screen {
             renderPlayerESPConfig(graphics, panelX, contentY, panelW, mouseX, mouseY, playerESP);
         }
 
+        // Render color wheel if active
+        if (colorWheel != null) {
+            int wheelX = panelX + panelW + 10;
+            int wheelY = panelY + 34;
+            colorWheel.render(graphics, this.font);
+        }
+
         // Close hint
         String hint = "Press ESC to close";
         int hintW = this.font.width(hint);
@@ -76,6 +85,16 @@ public class ModuleConfigScreen extends Screen {
     private void renderBlockESPConfig(GuiGraphicsExtractor graphics, int px, int cy, int pw,
                                        int mouseX, int mouseY, BlockESPModule mod) {
         int pad = 14;
+
+        // Tracer toggle
+        renderToggleRow(graphics, px + pad, cy, pw - pad * 2, "Tracer", mod.isTracerEnabled(), mouseX, mouseY);
+        cy += 18;
+
+        // Color with swatch
+        graphics.text(this.font, "ESP Color", px + pad, cy, 0xFFCCCCCC, false);
+        drawColorEntry(graphics, px + pad, cy, pw - pad * 2, "ESP Color", mod.getEspColor(), mouseX, mouseY);
+        cy += 18;
+
         graphics.text(this.font, "Range: " + mod.getRange() + " blocks", px + pad, cy, 0xFFCCCCCC, false);
         cy += 14;
 
@@ -111,6 +130,11 @@ public class ModuleConfigScreen extends Screen {
     private void renderStorageESPConfig(GuiGraphicsExtractor graphics, int px, int cy, int pw,
                                          int mouseX, int mouseY, StorageESPModule mod) {
         int pad = 14;
+
+        // Tracer toggle
+        renderToggleRow(graphics, px + pad, cy, pw - pad * 2, "Tracer", mod.isTracerEnabled(), mouseX, mouseY);
+        cy += 18;
+
         String[] labels = {"Chests", "Ender Chests", "Shulker Boxes", "Barrels", "Hoppers", "Dispensers", "Droppers", "Furnaces"};
         boolean[] values = {
                 mod.isShowChests(), mod.isShowEnderChests(), mod.isShowShulkerBoxes(),
@@ -141,6 +165,10 @@ public class ModuleConfigScreen extends Screen {
                                         int mouseX, int mouseY, PlayerESPModule mod) {
         int pad = 14;
 
+        // Tracer toggle
+        renderToggleRow(graphics, px + pad, cy, pw - pad * 2, "Tracer", mod.isTracerEnabled(), mouseX, mouseY);
+        cy += 18;
+
         graphics.text(this.font, "Player ESP Colors:", px + pad, cy, 0xFFAAAAFF, true);
         cy += 16;
 
@@ -170,16 +198,31 @@ public class ModuleConfigScreen extends Screen {
         graphics.text(this.font, "Range: " + mod.getRange() + " blocks", px + pad, cy, 0xFFCCCCCC, false);
     }
 
+    private void renderToggleRow(GuiGraphicsExtractor graphics, int x, int y, int w,
+                                   String label, boolean value, int mouseX, int mouseY) {
+        boolean hovered = mouseX >= x && mouseX <= x + w
+                && mouseY >= y && mouseY <= y + 12;
+        String status = value ? "\u25CF ON" : "\u25CB OFF";
+        int statusColor = value ? 0xFF2ECC71 : 0xFFE74C3C;
+        int labelColor = hovered ? 0xFFFFFFFF : 0xFFCCCCCC;
+
+        graphics.text(this.font, label, x, y, labelColor, false);
+        graphics.text(this.font, status, x + w - this.font.width(status), y, statusColor, false);
+    }
+
     private void drawColorEntry(GuiGraphicsExtractor graphics, int x, int y, int w,
                                  String label, int color, int mouseX, int mouseY) {
         graphics.text(this.font, label, x, y, 0xFFCCCCCC, false);
-        // Color preview box
+        // Color preview box (clickable to open color wheel)
         int boxX = x + w - 16;
+        boolean boxHovered = mouseX >= boxX - 1 && mouseX <= boxX + 13
+                && mouseY >= y - 1 && mouseY <= y + 13;
         graphics.fill(boxX, y, boxX + 12, y + 12, color | 0xFF000000);
-        graphics.fill(boxX - 1, y - 1, boxX + 13, y, 0xFF555555);
-        graphics.fill(boxX - 1, y + 12, boxX + 13, y + 13, 0xFF555555);
-        graphics.fill(boxX - 1, y, boxX, y + 12, 0xFF555555);
-        graphics.fill(boxX + 12, y, boxX + 13, y + 12, 0xFF555555);
+        int borderColor = boxHovered ? 0xFFFFFFFF : 0xFF555555;
+        graphics.fill(boxX - 1, y - 1, boxX + 13, y, borderColor);
+        graphics.fill(boxX - 1, y + 12, boxX + 13, y + 13, borderColor);
+        graphics.fill(boxX - 1, y, boxX, y + 12, borderColor);
+        graphics.fill(boxX + 12, y, boxX + 13, y + 12, borderColor);
     }
 
     @Override
@@ -190,14 +233,45 @@ public class ModuleConfigScreen extends Screen {
 
         if (button != 0) return super.mouseClicked(event, fromSelf);
 
+        // Check color wheel first
+        if (colorWheel != null && colorWheel.mouseClicked((int) mouseX, (int) mouseY)) {
+            return true;
+        }
+
         int panelW = 300;
         int panelH = 400;
         int panelX = (this.width - panelW) / 2;
         int panelY = (this.height - panelH) / 2;
         int pad = 14;
 
+        // Handle tracer toggle for all ESP modules (first row in config)
+        int tracerY = panelY + 34 - scrollOffset;
+        if (mouseX >= panelX + pad && mouseX <= panelX + panelW - pad
+                && mouseY >= tracerY && mouseY <= tracerY + 12) {
+            if (module instanceof BlockESPModule blockMod) {
+                blockMod.setTracerEnabled(!blockMod.isTracerEnabled());
+                return true;
+            } else if (module instanceof StorageESPModule storageMod) {
+                storageMod.setTracerEnabled(!storageMod.isTracerEnabled());
+                return true;
+            } else if (module instanceof PlayerESPModule playerMod) {
+                playerMod.setTracerEnabled(!playerMod.isTracerEnabled());
+                return true;
+            }
+        }
+
         if (module instanceof BlockESPModule blockESP) {
-            int cy = panelY + 34 - scrollOffset + 14 + 14;
+            // Color swatch click for Block ESP (second row: tracer=18px offset)
+            int colorRowY = panelY + 34 - scrollOffset + 18;
+            int colorBoxX = panelX + panelW - pad - 16;
+            if (mouseX >= colorBoxX - 1 && mouseX <= colorBoxX + 13
+                    && mouseY >= colorRowY - 1 && mouseY <= colorRowY + 13) {
+                openColorWheel(panelX + panelW + 10, panelY + 34, blockESP.getEspColor(),
+                        c -> blockESP.setEspColor(c), "blockEspColor");
+                return true;
+            }
+
+            int cy = panelY + 34 - scrollOffset + 18 + 18 + 14;
             var blocks = blockESP.getTrackedBlocks();
             for (int i = 0; i < blocks.size(); i++) {
                 if (mouseX >= panelX + pad && mouseX <= panelX + panelW - pad
@@ -227,11 +301,36 @@ public class ModuleConfigScreen extends Screen {
                 return true;
             }
         } else if (module instanceof StorageESPModule storageESP) {
-            int cy = panelY + 34 - scrollOffset + 16;
+            int cy = panelY + 34 - scrollOffset + 18 + 16;
             handleStorageToggle(storageESP, panelX, panelW, pad, (int) mouseX, (int) mouseY, cy);
         } else if (module instanceof PlayerESPModule playerESP) {
-            int cy = panelY + 34 - scrollOffset + 16 + 18 + 18 + 18 + 6;
+            // Color swatch clicks for Player ESP
+            int colorBaseY = panelY + 34 - scrollOffset + 18 + 16;
+            String[] colorFields = {"defaultColor", "sneakingColor", "friendColor"};
+            int[] colors = {playerESP.getDefaultColor(), playerESP.getSneakingColor(), playerESP.getFriendColor()};
+            ColorWheelWidget.ColorChangeCallback[] callbacks = {
+                    c -> playerESP.setDefaultColor(c),
+                    c -> playerESP.setSneakingColor(c),
+                    c -> playerESP.setFriendColor(c)
+            };
+            for (int i = 0; i < 3; i++) {
+                int rowY = colorBaseY + i * 18;
+                int colorBoxX = panelX + panelW - pad - 16;
+                if (mouseX >= colorBoxX - 1 && mouseX <= colorBoxX + 13
+                        && mouseY >= rowY - 1 && mouseY <= rowY + 13) {
+                    openColorWheel(panelX + panelW + 10, panelY + 34, colors[i], callbacks[i], colorFields[i]);
+                    return true;
+                }
+            }
+
+            int cy = panelY + 34 - scrollOffset + 18 + 16 + 18 + 18 + 18 + 6;
             handlePlayerToggle(playerESP, panelX, panelW, pad, (int) mouseX, (int) mouseY, cy);
+        }
+
+        // Close color wheel if clicking outside it
+        if (colorWheel != null && !colorWheel.isMouseOver((int) mouseX, (int) mouseY)) {
+            colorWheel = null;
+            activeColorField = null;
         }
 
         return super.mouseClicked(event, fromSelf);
@@ -263,6 +362,35 @@ public class ModuleConfigScreen extends Screen {
         if (my >= cy && my <= cy + 12) { mod.setShowName(!mod.isShowName()); return; }
         cy += 16;
         if (my >= cy && my <= cy + 12) { mod.setShowDistance(!mod.isShowDistance()); }
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        if (colorWheel != null && event.button() == 0) {
+            if (colorWheel.mouseDragged((int) event.x(), (int) event.y())) {
+                return true;
+            }
+        }
+        return super.mouseDragged(event, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (colorWheel != null) {
+            colorWheel.mouseReleased();
+        }
+        return super.mouseReleased(event);
+    }
+
+    private void openColorWheel(int wheelX, int wheelY, int currentColor,
+                                 ColorWheelWidget.ColorChangeCallback callback, String fieldName) {
+        if (activeColorField != null && activeColorField.equals(fieldName)) {
+            colorWheel = null;
+            activeColorField = null;
+        } else {
+            colorWheel = new ColorWheelWidget(wheelX, wheelY, currentColor, callback);
+            activeColorField = fieldName;
+        }
     }
 
     @Override

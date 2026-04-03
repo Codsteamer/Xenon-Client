@@ -26,6 +26,7 @@ public class StorageESPModule extends Module {
     private int furnaceColor = 0xFFCC4400;
 
     private int range = 64;
+    private boolean tracerEnabled = false;
 
     public StorageESPModule() {
         super("Storage ESP", "Highlights storage containers through walls", "Render");
@@ -70,4 +71,7 @@ public class StorageESPModule extends Module {
 
     public int getRange() { return range; }
     public void setRange(int range) { this.range = range; }
+
+    public boolean isTracerEnabled() { return tracerEnabled; }
+    public void setTracerEnabled(boolean enabled) { this.tracerEnabled = enabled; }
 }

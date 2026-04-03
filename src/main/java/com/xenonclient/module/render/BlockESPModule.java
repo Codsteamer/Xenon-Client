@@ -21,6 +21,7 @@ public class BlockESPModule extends Module {
     private final Set<Block> trackedBlockSet = new HashSet<>();
     private int espColor = 0xFFFF0000;
     private int range = 32;
+    private boolean tracerEnabled = false;
 
     public BlockESPModule() {
         super("Block ESP", "Highlights specific blocks through walls", "Render");
@@ -67,5 +68,13 @@ public class BlockESPModule extends Module {
 
     public void setRange(int range) {
         this.range = range;
+    }
+
+    public boolean isTracerEnabled() {
+        return tracerEnabled;
+    }
+
+    public void setTracerEnabled(boolean enabled) {
+        this.tracerEnabled = enabled;
     }
 }
