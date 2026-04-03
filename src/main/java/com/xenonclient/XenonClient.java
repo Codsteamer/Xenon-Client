@@ -1,6 +1,7 @@
 package com.xenonclient;
 
 import com.xenonclient.gui.WheelScreen;
+import com.xenonclient.module.ModuleManager;
 import com.xenonclient.section.SectionManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -20,6 +21,7 @@ public class XenonClient implements ClientModInitializer {
 
     private static XenonClient instance;
     private SectionManager sectionManager;
+    private ModuleManager moduleManager;
     private KeyMapping openGuiKey;
 
     public static XenonClient getInstance() {
@@ -33,6 +35,9 @@ public class XenonClient implements ClientModInitializer {
 
         sectionManager = new SectionManager();
         sectionManager.registerDefaults();
+
+        moduleManager = new ModuleManager();
+        moduleManager.registerDefaults();
 
         KeyMapping.Category xenonCategory = KeyMapping.Category.register(
                 Identifier.parse("xenon-client:xenon")
@@ -61,5 +66,9 @@ public class XenonClient implements ClientModInitializer {
 
     public SectionManager getSectionManager() {
         return sectionManager;
+    }
+
+    public ModuleManager getModuleManager() {
+        return moduleManager;
     }
 }

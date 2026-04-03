@@ -279,6 +279,13 @@ public class WheelScreen extends Screen {
         double mouseX = event.x();
         double mouseY = event.y();
 
+        // Forward click to active panel first (for module toggles, color wheel, etc.)
+        if (activePanel != null && button == 0) {
+            if (activePanel.mouseClicked((int) mouseX, (int) mouseY)) {
+                return true;
+            }
+        }
+
         if (button == 0 && hoveredSection >= 0) {
             SectionManager manager = XenonClient.getInstance().getSectionManager();
             Section section = manager.getSections().get(hoveredSection);
@@ -310,6 +317,33 @@ public class WheelScreen extends Screen {
         }
 
         return super.mouseClicked(event, fromSelf);
+    }
+
+    @Override
+    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+        if (activePanel != null && event.button() == 0) {
+            if (activePanel.mouseDragged((int) event.x(), (int) event.y())) {
+                return true;
+            }
+        }
+        return super.mouseDragged(event, deltaX, deltaY);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (activePanel != null) {
+            activePanel.mouseReleased();
+        }
+        return super.mouseReleased(event);
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double horizontalAmount, double verticalAmount) {
+        if (activePanel != null && activePanel.isMouseOver((int) mouseX, (int) mouseY)) {
+            activePanel.scroll((int) -verticalAmount);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, horizontalAmount, verticalAmount);
     }
 
     @Override
