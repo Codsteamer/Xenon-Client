@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "xenon-client",
+  "version": "${version}",
+  "name": "Xenon Client",
+  "description": "A Minecraft client mod with a circular wheel GUI for sections.",
+  "authors": ["Codsteamer"],
+  "contact": {
+    "sources": "https://github.com/Codsteamer/Xenon-Client"
+  },
+  "license": "MIT",
+  "icon": "assets/xenon-client/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["com.xenonclient.XenonClient"]
+  },
+  "mixins": ["xenon-client.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.18.4",
+    "minecraft": ">=26.1",
+    "java": ">=25"
+  }
+}
